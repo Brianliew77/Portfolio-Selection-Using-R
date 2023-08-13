@@ -1,0 +1,691 @@
+---
+title: "BT2201 Finance Report G30"
+output: html_document
+---
+
+```{r load-libraries, echo=FALSE, warning=FALSE, message=FALSE}
+# install required packages if you have not (suggested packages: rcompanion, rstatix, Rmisc, dplyr, tidyr, rpivotTable, knitr, psych)
+# install.packages("dplyr") #only need to run this code once to install the package
+# load required packages 
+library("GMCM")
+library("data.table")
+library("rcompanion") 
+library("rstatix")
+library("Rmisc") 
+library("dplyr") 
+library("tidyr")
+library("rpivotTable")
+library("knitr")
+library("psych")
+library(readxl)
+library(tseries)
+library(tidyquant) # To download the data
+library(tidyverse)
+library(plotly) # To create interactive charts
+library(timetk) # To manipulate the data series
+library(ggplot2)
+library(forcats)
+library(readxl)
+library(timeSeries)
+library(quantmod)
+library(fPortfolio)
+
+```
+
+**CORE CHARACTERTICS**
+
+**Tracking Error**
+
+Using the following formula for tracking error:  
+
+*Tracking Error = sqrt(var(Rp - Rb))*, where Rp is the returns of the ETF and Rb is the returns of the benchmark
+
+Our team tabulated the adjusted returns for the the respective ETFs and benchmarks and calculated the variance of the difference in their returns to get the respective tracking errors. 
+
+**Liquidity**
+
+Our team measured the liquidity of the ETFs using the bid-to-ask spread.
+
+The bid-to-ask spread is the difference in amount between the ask price and the bid price for the ETF. The bid-ask spread is the difference between the highest price that someone is willing to pay for one unit of the ETF and the lowest price that a seller is willing to sell for one unit of the same ETF.
+
+**Fees (Expense Ratio)**
+
+Our team measured the fees of the ETF using the expense ratio of each ETF. The expense ratio is a percentage based annual fee that is charged to the investor based on the amount they have invested in the ETF. A higher expense ratio would mean a lower net return to the investor
+
+*refer to Appendix for Core_Characteristics.xlsx*
+
+```{r q1-hghj, echo=FALSE}
+core_char <- readxl::read_excel("Core_Characteristics.xlsx")
+
+kable(core_char)
+```
+
+
+**CURRENCY CONVERSION**
+
+Based on the ETFxReturns excel sheet provided, we utilised the 22 year data to calculate our returns as well as excess returns, accounting for the FX conversions. 
+
+The FX rates used were the daily USD-JPY returns data provided. 
+
+**1. Japan ETFs**
+
+For 1306.JT and 1343.JT, these ETFs are traded in JPY. 
+
+To tabulate the returns for these 2 ETFs traded in JPY, we converted the risk free rate(Rf) from USD to JPY using the formula: 
+
+*((1 - returns of Rf)(1 - USD/JPY daily conversion rate) - 1)*
+
+To obtain the excess returns of these 2 ETFs, we took the returns of the ETFs minus the returns of the risk free rate: 
+
+*excess returns = Ri - Rf*
+
+**2. US ETFs**
+
+For the other 14 ETFs, they are traded in USD. In this case, we have to first convert the daily returns of the ETFs from USD to JPY, using the formula:
+
+*((1 - returns of Ri)(1 - USD/JPY daily conversion rate) - 1)*
+
+To obtain the excess returns of these 14 ETFs, we took the returns of the ETFs(JPY) minus the returns of the risk free rate(JPY): 
+
+*excess returns = Ri - Rf*
+
+To obtain the return of the market in JPY, we converted the returns of the market in USD to JPY using the formula:
+
+*((1 - returns of Rm)(1 - USD/JPY daily conversion rate) - 1)*
+
+To obtain the excess return of the market(JPY), we took the returns of the market(JPY) minus the returns of the risk free rate(JPY): 
+
+*excess returns = Rm - Rf*
+
+This information is presented in the excel sheet ("ETFfxReturnsForLR.xlsx") provided.
+*refer to Appendix for ETFfxReturnsForLR.xlsx*
+
+
+To calculate mu(μ) and sigma(σ) of the market, we found the mean and standard deviation of the market excess returns, as shown below:
+
+```{r q1-2, echo=FALSE}
+adjustRet<- readxl::read_excel("ETFfxReturnsForLR.xlsx")
+
+adjustRet1 = adjustRet[,-1]
+adjustRet_mkt = adjustRet1 %>%
+  dplyr::select(mkt_ret_JPY_excess)
+
+Mean=mean(adjustRet_mkt$mkt_ret_JPY_excess)
+
+SD=sd(adjustRet_mkt$mkt_ret_JPY_excess)
+
+df <- cbind(Mean, SD)
+colnames(df) <- c("Market Excess Mean(JPY)", "Market Excess SD(JPY)")
+
+kable(df)
+```
+
+To obtain the mu and sigma of the respective ETFs, we ran a CAPM regression for each of the respective 16 ETFs as shown below:
+
+```{r q1-3, echo=FALSE}
+
+lm.AGG <- lm(formula = AGG_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.AGG)
+
+lm.SCHP <- lm(formula = SCHP_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.SCHP)
+
+lm.VCSH <- lm(formula = VCSH_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VCSH)
+
+lm.BNDX <- lm(formula = BNDX_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.BNDX)
+
+lm.VWOB <- lm(formula = VWOB_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VWOB)
+
+lm.1306 <- lm(formula = ret_1306_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.1306)
+
+lm.VOO <- lm(formula = VOO_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VOO)
+
+
+lm.VO <- lm(formula = VO_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VO)
+
+lm.VSS <- lm(formula = VSS_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VSS)
+
+lm.VGK <- lm(formula = VGK_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VGK)
+
+lm.VWO <- lm(formula = VWO_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VWO)
+
+lm.1343 <- lm(formula = ret_1343_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.1343)
+
+lm.VNQ <- lm(formula = VNQ_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VNQ)
+
+lm.VNQI <- lm(formula = VNQI_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.VNQI)
+
+lm.IAU <- lm(formula = IAU_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.IAU)
+
+lm.BCI <- lm(formula = BCI_ret_JPY_excess ~ mkt_ret_JPY_excess,adjustRet )
+
+summary(lm.BCI)
+```
+
+Using the beta(βi,M) obtained from the CAPM regression above, as well as the market excess mean returns (μM*), we used the formula: 
+
+*μ CAPM = (βi,M)(market excess mean returns)*
+
+This is shown in the table below:
+```{r q1-u7uy, echo=FALSE}
+statistics <- read_excel("MuCalculations.xlsx")
+kable(statistics)
+```
+*refer to Appendix for MuCalculations.xlsx*
+
+Also, we tabulated the sigma(σ) of each ETF as shown below: 
+
+```{r q1-b, echo=FALSE}
+
+adjustRet2 = adjustRet[,-1]
+adjustRet = adjustRet2 %>%
+  dplyr::select(AGG_ret_JPY_excess,SCHP_ret_JPY_excess, VCSH_ret_JPY_excess, BNDX_ret_JPY_excess, VWOB_ret_JPY_excess, ret_1306_JPY_excess, VOO_ret_JPY_excess, VO_ret_JPY_excess, VSS_ret_JPY_excess, VGK_ret_JPY_excess, VWO_ret_JPY_excess, ret_1343_JPY_excess, VNQ_ret_JPY_excess, VNQI_ret_JPY_excess, IAU_ret_JPY_excess,BCI_ret_JPY_excess)
+
+Mean=sapply(adjustRet, mean)
+
+SD=sapply(adjustRet,sd)
+
+knitr::kable(SD, col.names = c("sigma"))
+
+```
+
+**Covariance Matrix**
+
+Utilizing all the above data, we then proceeded to calculate the covariance matrix.  
+
+```{r q1-f, echo=FALSE, warning=FALSE}
+
+log_ret_tidy <- read_excel("ETFfinal3.xlsx")
+
+#use spread() function to convert it to a wide format
+#use xts() function to convert it to a time series 
+log_ret_xts <- log_ret_tidy %>%
+  spread(symbol, value = ret_after_log) %>%
+  tk_xts()
+
+#remove NA 
+log_ret_xts <- na.fill(log_ret_xts, fill = 0)
+
+#calculate the mean daily returns for each etf\
+#calculate the standard deviation of daily returns of each etf 
+mean_ret <- colMeans(log_ret_xts)
+
+sd_ret <- GMCM:::colSds(log_ret_xts)
+
+#calculate the covaraince matrix for all the etfs
+#annualise it by multiplying by 252
+cov_mat <- cov(log_ret_xts) * 252
+kable(round(cov_mat,4))
+
+#det(cov_mat)
+
+#cor_mat <- cor(log_ret_xts)
+#print(round(cor_mat,4))
+
+```
+
+**Portfolio Selection**
+
+Using the runif() function which generates random deviates from the uniform distribution, we created random weights for the 16 ETFs. We ensured that the sum of these random weights is 1. This is shown below:
+
+```{r q1-j, echo=FALSE}
+#create random weights
+wts <- runif(n = 16)
+
+#we created some random weights but the problem is that their sum is more than 1
+#fix below 
+wts <- wts/sum(wts)
+kable(wts, col.names = c("Random Weights"))
+kable(sum(wts), col.names = c("Sum of Random Weights"))
+```
+
+
+Based on the random weights generated, we calculated the annualized portfolio returns and portfolio risk (standard deviation). Using the portfolio returns and risk, we obtained the Sharpe Ratio for this portfolio. 
+
+```{r q1-kfds, echo=FALSE}
+#calculate annualized portfolio returns
+port_returns <- (sum(wts * mean_ret) + 1)^252 - 1
+
+#calculate the portfolio risk/ standard deviation 
+port_risk <- sqrt(t(wts) %*% (cov_mat %*% wts))
+
+#since Risk free rate is 0% 
+sharpe_ratio <- port_returns/port_risk
+
+number <- cbind(port_returns, port_risk, sharpe_ratio)
+colnames(number) <- c('Portfolio Returns', 'Portfolio Risk', 'Portfolio Sharpe Ratio')
+
+kable(number)
+
+```
+
+```{r q1-sdaaeww, echo=FALSE, warning=FALSE}
+num_port <- 5000
+
+#creating a matrix to store the weights
+
+all_wts <- matrix(nrow = num_port,
+                  ncol = 16)
+
+#creating an empty vector to store
+#portfolio returns
+
+port_returns <- vector('numeric', length = num_port)
+
+#creating an empty vector to store
+#portfolio Standard deviation
+
+port_risk <- vector('numeric', length = num_port)
+
+#creating an empty vector to store
+#portfolio Sharpe Ratio
+
+sharpe_ratio <- vector('numeric', length = num_port)
+
+for (i in seq_along(port_returns)) {
+  
+  wts <- runif(16)
+  wts <- wts/sum(wts)
+  
+  #storing weight in the matrix
+  all_wts[i,] <- wts
+  
+  #portfolio returns
+  
+  port_ret <- sum(wts * mean_ret)
+  port_ret <- ((port_ret + 1)^252) - 1
+  
+  #storing Portfolio Returns values
+  port_returns[i] <- port_ret
+  
+  
+  #creating and storing portfolio risk
+  port_sd <- sqrt(t(wts) %*% (cov_mat  %*% wts))
+  port_risk[i] <- port_sd
+  
+  #creating and storing Portfolio Sharpe Ratios
+  #assuming 0% Risk free rate
+  
+  sr <- port_ret/port_sd
+  sharpe_ratio[i] <- sr
+  
+}
+#storing the values in the table
+portfolio_values <- tibble(Return = port_returns,
+                  Risk = port_risk,
+                  SharpeRatio = sharpe_ratio)
+
+#converting matrix to a tibble and changing column names
+all_wts <- tk_tbl(all_wts)
+
+colnames(all_wts) <- colnames(log_ret_xts)
+
+#combing all the values together
+portfolio_values <- tk_tbl(cbind(all_wts, portfolio_values))
+
+```
+
+We then proceeded to generate 5000 random portfolios and thereby generating a matrix to store all these random weights, which we then used to calculate the 3 respective portfolios of 
+1. minimum variance
+2. maximum variance
+3. maximum Sharpe Ratio
+
+
+```{r q1-uuhh, echo=FALSE}
+
+min_var <- portfolio_values[which.min(portfolio_values$Risk),]
+max_var <- portfolio_values[which.max(portfolio_values$Risk),]
+max_sr <- portfolio_values[which.max(portfolio_values$SharpeRatio),]
+max_return <- portfolio_values[which.max(portfolio_values$Return),]
+
+mycolor <- c("darkcyan", "powderblue", "lightskyblue4","lightskyblue2", "steelblue2", "skyblue1", "skyblue2", "steelblue3", "plum4", "plum3", "plum2", "thistle1", "thistle3", "lightgreen", "darkseagreen2", "palegreen3")
+```
+
+The weights of each ETF in the portfolio is generally correlated to its risk, which is measured through its standard deviation. For the minimum variance portfolio, ETFs with lower risks generally have higher weights. For maximum variance portfolio, ETFS with higher risks generally have higher weights. For the tangency portfolio, its portfolio weights are distributed such that the maximum sharpe ratio is obtained. 
+
+
+```{r q1-e, echo=FALSE}
+#minimum variance portfolio 
+
+min_var <- min_var %>%
+  gather('1306 JT':VWOB, key = Asset,
+         value = Weights) %>%
+  mutate(Asset = as.factor(Asset))
+
+min_port <- min_var %>%
+  ggplot(aes(x = fct_reorder(Asset,Weights), y = Weights, fill = Asset)) +
+  geom_bar(stat = 'identity', fill = mycolor) +
+  geom_text(aes(label = round(Weights, 3)), size = 3) +
+  theme_bw() +
+  labs(x = 'Assets', y = 'Weights', title = "Minimum Variance Portfolio Weights") +
+  scale_y_continuous(labels = scales::percent) 
+
+ggplotly(min_port)
+```
+
+```{r q3, echo=FALSE}
+#maximum variance portfolio
+max_var <- max_var %>%
+  gather('1306 JT':VWOB, key = Asset,
+         value = Weights) %>%
+  mutate(Asset = as.factor(Asset))
+
+max_port <- max_var %>%  
+  ggplot(aes(x = fct_reorder(Asset,Weights), y = Weights, fill = Asset)) +
+  geom_bar(stat = 'identity', fill = mycolor) +
+  geom_text(aes(label = round(Weights, 3)), size = 3) +
+  theme_bw() +
+  labs(x = 'Assets', y = 'Weights', title = "Maximum Variance Portfolio Weights") +
+  scale_y_continuous(labels = scales::percent) 
+
+ggplotly(max_port)
+```
+
+
+```{r q1-h, echo=FALSE}
+#tangency portfolio with the highest sharpe ratio 
+max_sr <- max_sr %>%
+  gather('1306 JT':VWOB, key = Asset,
+         value = Weights) %>%
+  mutate(Asset = as.factor(Asset))
+
+tan_port <- max_sr %>%
+  ggplot(aes(x = fct_reorder(Asset,Weights), y = Weights, fill = Asset)) +
+  geom_bar(stat = 'identity', fill = mycolor) +
+  geom_text(aes(label = round(Weights, 3)), size = 3) +
+  theme_minimal() +
+  labs(x = 'Assets', y = 'Weights', title = "Tangency Portfolio Weights") +
+  scale_y_continuous(labels = scales::percent) 
+
+ggplotly(tan_port)
+```
+From the 5000 portfolios that we have generated in the graph below, we are able to find the points representing the minimum, maximum and tangency portfolios as indicated in the graph.  
+
+```{r q1-i, echo=FALSE}
+port <- portfolio_values %>%
+  ggplot(aes(x = Risk, y = Return, color = SharpeRatio)) +
+  geom_point() +
+  theme_classic() +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(labels = scales::percent) +
+  labs(x = 'Annualised Risk',y = 'Annualised Returns', title = "Graph of Portfolios") +
+  geom_point(aes(x = Risk,
+                 y = Return), data = min_var, color = 'red') +
+  geom_point(aes(x = Risk,
+                 y = Return), data = max_sr, color = 'red') +
+  geom_point(aes(x = Risk,
+                 y = Return), data = max_var, color = 'red') +
+  geom_text(data = min_var, aes(x = Risk, y = Return), label = "Minimum", color = 'red', size = 3) + 
+  geom_text(data = max_sr, aes(x = Risk, y = Return), label = "Tangent", color = 'red', size = 3) +
+  geom_text(data = max_var, aes(x = Risk, y = Return), label = "Maximum", color = 'red', size = 3) + 
+  scale_color_gradientn(colors =  c("blue", "plum", "lightgreen"), labels = scales::percent)
+
+ggplotly(port)
+
+
+```
+The graph below shows us the mean-variance efficient frontier which is tangent to the risky asset frontier, generated by plotting 50 portfolios on the mean-variance efficient frontier. From this we are able to obtain the minimum, maximum and tangency market portfolios.  
+``` {r trying, echo=FALSE}
+
+return_data <- read_excel("ETFfinal4.xlsx")
+AGG <- return_data %>% 
+  subset(symbol == "AGG")
+SCHP <- return_data %>% 
+  subset(symbol == "SCHP")
+VCSH <- return_data %>% 
+  subset(symbol == "VCSH")
+BNDX <- return_data %>% 
+  subset(symbol == "BNDX")
+VWOB <- return_data %>% 
+  subset(symbol == "VWOB")
+etf_1306 <- return_data %>% 
+  subset(symbol == "1306 JT")
+VOO <- return_data %>% 
+  subset(symbol == "VOO")
+VO <- return_data %>% 
+  subset(symbol == "VO")
+VSS <- return_data %>% 
+  subset(symbol == "VSS")
+VGK <- return_data %>% 
+  subset(symbol == "VGK")
+VWO <- return_data %>% 
+  subset(symbol == "VWO")
+etf_1343 <- return_data %>% 
+  subset(symbol == "1343 JT")
+VNQ <- return_data %>% 
+  subset(symbol == "VNQ")
+VNQI <- return_data %>% 
+  subset(symbol == "VNQI")
+IAU <- return_data %>% 
+  subset(symbol == "IAU")
+BCI <- return_data %>% 
+  subset(symbol == "BCI")
+
+
+return.TS <- as.timeSeries(cbind(AGG, SCHP, VCSH, BNDX, VWOB, etf_1306, VOO, VO, VSS, VGK, VWO, etf_1343, VNQ, VNQI, IAU, BCI))
+names(return.TS) <- c("AGG", "SCHP", "VCSH", "BNDX", "VWOB", "1306 JT", "VO", "VOO", "VSS", "VGK", "VWO", "1343 JT", "VNQ", "VNQI", "IAU", "BCI")
+
+effFrontier <- portfolioFrontier(return.TS, constraints = "Longonly")
+
+plot(effFrontier,c(1,2,3,4))
+
+```
+The difference between the returns and risk of each portfolio in both graphs is because the first graph considers annualised returns and risk, whereas the second graph considers daily returns and risk. 
+
+
+**PORTFOLIO BACKTESTING**
+
+The first graph below shows the daily returns of the portfolio with respect to time from 01-01-2001 to 18-03-2022. 
+The second graph shows the growth of the portfolio by plotting the portfolio's cumulative returns over time from 01-01-2001 to 18-03-2022. We assumed an initial investment of 10,000 JPY
+
+
+```{r q1-trying, echo=FALSE, warning=FALSE}
+min_var_weights <- min_var$Weights
+min_var_stocks <- min_var$Asset
+min_var_weights_table <- tibble(min_var_stocks, min_var_weights)
+
+port_returns_min_var <- log_ret_tidy %>%
+  tq_portfolio(assets_col = symbol,
+               returns_col = ret_after_log,
+               weights = min_var_weights_table,
+               col_rename = "Returns")
+
+ggplot(data=port_returns_min_var, aes(x=date, y=Returns))+
+  geom_bar(stat = "identity", color = "darkcyan") +
+  labs(title = "Daily Returns of Minimum Variance Portfolio", x = "Year", y = "Returns") +
+  theme_tq() +
+  scale_color_tq() +
+  scale_y_continuous(labels = scales::percent)
+  
+port_growth_min_var <- log_ret_tidy %>%
+    tq_portfolio(assets_col   = symbol, 
+                 returns_col  = ret_after_log, 
+                 weights      = min_var_weights_table, 
+                 col_rename   = "investment.growth",
+                 wealth.index = TRUE) %>%
+    mutate(investment.growth = investment.growth * 10000)
+
+port_growth_min_var %>%
+    ggplot(aes(x = date, y = investment.growth)) +
+    geom_line(size = 2, color = "darkcyan") +
+    labs(title = "Minimum Variance Portfolio Growth", x = "Year", y = "Portfolio Value") +
+    theme_tq() +
+    scale_color_tq() +
+    scale_y_continuous(labels = scales::dollar)
+
+```
+
+```{r q1-trying3423432, echo=FALSE, warning=FALSE}
+max_var_weights <- max_var$Weights
+max_var_stocks <- max_var$Asset
+max_var_weights_table <- tibble(max_var_stocks, max_var_weights)
+
+port_returns_max_var <- log_ret_tidy %>%
+  tq_portfolio(assets_col = symbol,
+               returns_col = ret_after_log,
+               weights = max_var_weights_table,
+               col_rename = "Returns")
+
+ggplot(data=port_returns_max_var, aes(x=date, y=Returns))+
+  geom_bar(stat = "identity", color = "plum4") +
+  labs(title = "Maximum Variance Portfolio Variance", x = "Year", y = "Returns") +
+  theme_tq() +
+  scale_color_tq() +
+  scale_y_continuous(labels = scales::percent)
+  
+port_growth_max_var <- log_ret_tidy %>%
+    tq_portfolio(assets_col   = symbol, 
+                 returns_col  = ret_after_log, 
+                 weights      = max_var_weights_table, 
+                 col_rename   = "investment.growth",
+                 wealth.index = TRUE) %>%
+    mutate(investment.growth = investment.growth * 10000)
+
+port_growth_max_var %>%
+    ggplot(aes(x = date, y = investment.growth)) +
+    geom_line(size = 2, color = "plum4") +
+    labs(title = "Maximum Variance Portfolio Growth", x = "Year", y = "Portfolio Value") +
+    theme_tq() +
+    scale_color_tq() +
+    scale_y_continuous(labels = scales::dollar)
+```
+
+```{r q1-trying3, echo=FALSE}
+max_sr_weights <- max_sr$Weights
+max_sr_stocks <- max_sr$Asset
+max_sr_weights_table <- tibble(max_sr_stocks, max_sr_weights)
+
+log_ret_tidy_try <- log_ret_tidy
+
+port_returns_max_sr <- log_ret_tidy %>%
+  tq_portfolio(assets_col = symbol,
+               returns_col = ret_after_log,
+               weights = max_sr_weights_table,
+               col_rename = "Returns")
+
+ggplot(data=port_returns_max_sr, aes(x=date, y=Returns))+
+  geom_bar(stat = "identity", color = "steelblue3") +
+  labs(title = "Tangency Portfolio Variance", x = "Year", y = "Returns") +
+  theme_tq() +
+  scale_color_tq() +
+  scale_y_continuous(labels = scales::percent)
+  
+port_growth_max_sr <- log_ret_tidy %>%
+    tq_portfolio(assets_col   = symbol, 
+                 returns_col  = ret_after_log, 
+                 weights      = max_sr_weights_table, 
+                 col_rename   = "investment.growth",
+                 wealth.index = TRUE) %>%
+    mutate(investment.growth = investment.growth * 10000)
+
+port_growth_max_sr %>%
+    ggplot(aes(x = date, y = investment.growth)) +
+    geom_line(size = 2, color = "steelblue3") +
+    labs(title = "Tangency Portfolio Growth", x = "Year", y = "Portfolio Value") +
+    theme_tq() +
+    scale_color_tq() +
+    scale_y_continuous(labels = scales::dollar)
+```
+
+
+```{r q1-trying2223, echo=FALSE}
+# Create returns_estim <=> 17 years span
+returns_estim <- window(log_ret_xts, start = "2001-10-01", end = "2018-09-30")
+
+# Create returns_eval
+returns_eval <- window(log_ret_xts, start ="2018-10-01", end = "2022-03-18")
+
+# Create vector of max_weights
+weights <- ##Fill yourself according to tangency weights
+
+# Create portfolio with estimation sample 
+pf_estim <- portfolio.optim(returns_estim, weights = wts)
+
+# Create portfolio with evaluation sample
+pf_eval <- portfolio.optim(returns_eval, weights = wts)
+
+# Create returns_pf_estim
+returns_pf_estim <- Return.portfolio(returns_estim, pf_estim$pw, rebalance_on = "months")
+
+# Create returns_pf_eval
+returns_pf_eval <- Return.portfolio(returns_eval, pf_estim$pw, rebalance_on = "months")
+
+# Print a table of your estimation sample returns 
+a = table.AnnualizedReturns(returns_pf_estim)
+
+# Backtest results <=> compare to your optimal portfolio returns and risk
+b = table.AnnualizedReturns(returns_pf_eval)
+
+tab = cbind(a,b)
+
+row.names(tab) = c("Annualised Returns", "Annualised Standard Deviation", "Annualised Sharpe Ratio")
+
+kable(tab, col.names = c("Portfolio Returns Estimate", "Portfolio Returns Evaluation"))
+
+```
+
+
+**APPENDIX**
+
+**Core_Characteristics.xlsx**
+```{r appendix22445, echo=FALSE}
+
+head(core_char)
+
+
+```
+**ETFfxReturnsForLR.xlsx**
+
+```{r appendix222, echo=FALSE}
+
+head(adjustRet)
+
+
+```
+
+**MuCalculations.xlsx**
+```{r q1-u7uy22, echo=FALSE}
+head(statistics)
+
+```
+
+**ETFfinal3.xlsx**
+```{r q1-u7uydddd22, echo=FALSE}
+head(log_ret_tidy) 
+
+```
+
+**ETFfinal4.xlsx**
+```{r q1-u7uyddddddd22, echo=FALSE}
+head(return_data) 
+```
+
+
